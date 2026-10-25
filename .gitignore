@@ -1,0 +1,34 @@
+# ---------- 构建输出 ----------
+[Bb]in/
+[Oo]bj/
+/publish/
+/dist/
+[Ll]og/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ---------- IDE ----------
+.vs/
+.idea/
+.vscode/
+*.swp
+*~
+
+# ---------- 运行时产物（便携模式，写在 exe 同目录） ----------
+QiPlayer.settings.xml
+QiPlayer.settings.xml.bak
+crash.log
+
+# ---------- 开发探针与本地测试产物 ----------
+/tools/
+/.playwright-mcp/
+
+# ---------- 本地预览截图（仓库只保留 docs/screenshot.png） ----------
+/*.png
+
+# ---------- 系统文件 ----------
+Thumbs.db
+desktop.ini
+.DS_Store

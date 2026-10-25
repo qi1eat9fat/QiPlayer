@@ -1,0 +1,110 @@
+<UserControl x:Class="QiPlayer.Controls.TaskbarMediaControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:local="clr-namespace:QiPlayer.Controls"
+             Height="40" Width="100"
+             TextOptions.TextRenderingMode="ClearType"
+             TextOptions.TextFormattingMode="Ideal">
+    <!--
+        鼠标事件挂在 Border 上而不是窗口上：
+        任务栏挂件是任务栏的子窗口，窗口级 MouseEnter 不可靠，
+        上游 FluentFlyout 也是在控件内部处理。
+    -->
+    <Border x:Name="MainBorder"
+            CornerRadius="6"
+            ClipToBounds="True"
+            MouseEnter="MainBorder_MouseEnter"
+            MouseLeave="MainBorder_MouseLeave"
+            MouseMove="MainBorder_MouseMove">
+        <Grid>
+            <!-- 无背景：文字与封面直接浮在任务栏上，不再绘制模糊封面底与顶部分隔线 -->
+            <Grid x:Name="MainGrid" HorizontalAlignment="Left" VerticalAlignment="Center"
+                  RenderTransformOrigin="0,0.5">
+                    <Grid.RenderTransform>
+                        <ScaleTransform ScaleX="0.9" ScaleY="0.9" />
+                    </Grid.RenderTransform>
+
+                    <StackPanel x:Name="MainStackPanel" Orientation="Horizontal"
+                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Width="Auto">
+                        <!-- 封面 -->
+                        <Border x:Name="SongImageBorder" CornerRadius="5" ClipToBounds="True"
+                                Width="36" Height="36" Panel.ZIndex="2">
+                            <Grid>
+                                <ui:SymbolIcon x:Name="SongImagePlaceholder" Symbol="MusicNote220"
+                                               FontSize="24" Filled="True"
+                                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                <Border>
+                                    <Border.Background>
+                                        <ImageBrush x:Name="SongImage" Stretch="UniformToFill" />
+                                    </Border.Background>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- 歌名 / 艺术家 -->
+                        <StackPanel x:Name="SongInfoStackPanel" Orientation="Vertical"
+                                    VerticalAlignment="Center" Width="Auto">
+                            <Canvas x:Name="SongTitleContainer" ClipToBounds="True" Height="19">
+                                <TextBlock x:Name="SongTitle" Text="" FontWeight="Normal">
+                                    <TextBlock.RenderTransform>
+                                        <TranslateTransform />
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </Canvas>
+                            <Canvas x:Name="SongArtistContainer" ClipToBounds="True"
+                                    Margin="0,-1.5,0,0" Height="19">
+                                <TextBlock x:Name="SongArtist" Text="" FontWeight="Normal" Opacity="0.5">
+                                    <TextBlock.RenderTransform>
+                                        <TranslateTransform />
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </Canvas>
+                        </StackPanel>
+
+                        <!-- 悬停控制键 -->
+                        <StackPanel x:Name="ControlsStackPanel" Orientation="Horizontal"
+                                    VerticalAlignment="Center" Width="Auto" Visibility="Collapsed">
+                            <ui:Button x:Name="PreviousButton" Appearance="Transparent"
+                                       Icon="{ui:SymbolIcon Previous20, Filled=True}"
+                                       Height="32" Width="32" Padding="0" BorderThickness="0"
+                                       Margin="0,0,0,-1" Click="Previous_Click" />
+                            <ui:Button x:Name="PlayPauseButton" Appearance="Transparent"
+                                       Icon="{ui:SymbolIcon Pause16, Filled=True}"
+                                       Height="32" Width="32" Padding="0" BorderThickness="0"
+                                       Margin="0,0,0,-1" Click="PlayPause_Click" />
+                            <ui:Button x:Name="NextButton" Appearance="Transparent"
+                                       Icon="{ui:SymbolIcon Next20, Filled=True}"
+                                       Height="32" Width="32" Padding="0" BorderThickness="0"
+                                       Margin="0,0,0,-1" Click="Next_Click" />
+                        </StackPanel>
+
+                        <!-- 单行歌词：当前歌词行（卡拉OK 时整行扫过）。
+                             宽度按当前歌词行动态计算，内容左对齐，与歌名区之间留统一间距。 -->
+                        <Grid x:Name="LyricPanel" VerticalAlignment="Center"
+                              ClipToBounds="True"
+                              Visibility="Collapsed">
+                            <!-- 必须用 Canvas 承载：Grid/StackPanel 会给超出宽度的子元素加
+                                 “布局裁剪”，裁剪在子元素自己的坐标里，整行平移后仍只画前一段；
+                                 Canvas 按内容自然尺寸排版，ClipToBounds 作用在画布坐标，
+                                 平移才能把后半句露出来。宽高由代码按视口设置。 -->
+                            <Canvas x:Name="LyricViewport" VerticalAlignment="Center"
+                                    ClipToBounds="True">
+                                <!-- 卡拉OK 原文：整行一条边界从左扫到右（绿色未唱 → 橙色已唱），
+                                     内部两层文本由控件自行排版，这里只控制字号与可见性 -->
+                                <local:KaraokeSweepTextBlock x:Name="LyricKaraoke"
+                                                             Canvas.Left="0" Canvas.Top="0"
+                                                             Visibility="Collapsed" />
+                                <!-- 普通模式：原文 + 译文合成一行 -->
+                                <TextBlock x:Name="LyricText" Text="" FontSize="12"
+                                           Canvas.Left="0" Canvas.Top="0"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                           Opacity="0.85" Visibility="Collapsed" />
+                            </Canvas>
+                        </Grid>
+                    </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

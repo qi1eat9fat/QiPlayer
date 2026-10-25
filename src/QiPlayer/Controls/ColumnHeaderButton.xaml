@@ -1,0 +1,74 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:QiPlayer.Controls">
+
+    <!-- 列头按钮：无边框、小字、悬停高亮；当前排序列加粗并显示方向箭头 -->
+    <Style TargetType="{x:Type controls:ColumnHeaderButton}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="2,2" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type controls:ColumnHeaderButton}">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="3"
+                            Padding="{TemplateBinding Padding}">
+                        <!--
+                          用 StackPanel 让箭头紧贴文字，而非贴到列的右边缘。
+                          若用 Grid 的 * + Auto 两列，箭头会被推到很宽的标题列末端，
+                          视觉上落到了下一列（艺术家）旁边，造成归属歧义。
+                        -->
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="{TemplateBinding Content}"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <!-- 当前排序列加粗 -->
+                                            <DataTrigger Binding="{Binding IsActive, RelativeSource={RelativeSource AncestorType=controls:ColumnHeaderButton}}" Value="True">
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                                <Setter Property="Opacity" Value="0.9" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsActive, RelativeSource={RelativeSource AncestorType=controls:ColumnHeaderButton}}" Value="False">
+                                                <Setter Property="Opacity" Value="0.5" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+
+                            <!-- 排序方向箭头：紧贴文字，仅当前排序列可见 -->
+                            <TextBlock Text="{TemplateBinding DirectionGlyph}"
+                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="10"
+                                       Margin="3,1,0,0"
+                                       VerticalAlignment="Center"
+                                       Opacity="0.9"
+                                       Visibility="{Binding IsActive, RelativeSource={RelativeSource AncestorType=controls:ColumnHeaderButton}, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        </StackPanel>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

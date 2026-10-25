@@ -1,0 +1,52 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <!--
+      ═══════════════════════════════════════════════════════════
+      键盘焦点框（FocusVisualStyle）
+      ═══════════════════════════════════════════════════════════
+
+      控件获得键盘焦点时，WPF 会在它外面套一圈系统焦点框：1px 黑色虚线矩形。
+      在深色卡片上几乎是黑的，看着像「突然多出一个黑边框」——点击开关、拖过进度条
+      之后都能碰到，焦点移走才消失，于是显得「有时候」才出现。
+
+      这里换成强调色的柔和虚线：既不再突兀，也保留键盘操作时的可辨识度。
+      全仓统一从这一个资源取值。
+    -->
+
+    <Style x:Key="SoftFocusVisualStyle">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <!-- 负边距让框贴着控件外沿，不挤压内容 -->
+                    <Rectangle Margin="-2"
+                               RadiusX="6"
+                               RadiusY="6"
+                               Stroke="{DynamicResource AppAccentBrush}"
+                               StrokeThickness="1"
+                               StrokeDashArray="3 3"
+                               Opacity="0.75"
+                               SnapsToDevicePixels="True" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      覆盖系统焦点框的查找键：没有单独指定 FocusVisualStyle 的控件都会回落到这里。
+      这个键是 WPF 约定的全局入口，只能在 Application.Resources 层生效。
+    -->
+    <Style x:Key="{x:Static SystemParameters.FocusVisualStyleKey}"
+           BasedOn="{StaticResource SoftFocusVisualStyle}" />
+
+    <!--
+      Wpf.Ui 的开关样式自己指定了 FocusVisualStyle，不会走系统默认键，
+      这里给它显式换成同一套（BasedOn 保留 Wpf.Ui 原有模板与状态样式）。
+    -->
+    <Style TargetType="{x:Type ui:ToggleSwitch}"
+           BasedOn="{StaticResource {x:Type ui:ToggleSwitch}}">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource SoftFocusVisualStyle}" />
+    </Style>
+
+</ResourceDictionary>

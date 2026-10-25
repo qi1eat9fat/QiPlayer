@@ -1,0 +1,30 @@
+<Window x:Class="QiPlayer.Windows.TaskbarWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:QiPlayer.Controls"
+        Title="TaskbarWindow" Height="40" Width="100"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        AllowsTransparency="True"
+        Background="Transparent"
+        TextOptions.TextRenderingMode="ClearType"
+        TextOptions.TextFormattingMode="Ideal"
+        Loaded="Window_Loaded"
+        Visibility="Collapsed">
+
+    <Canvas x:Name="WidgetCanvas" Background="Transparent">
+        <!-- 频谱命中层：分层窗口的完全透明像素不参与命中测试，
+             频谱静音时整块全透明，鼠标移上去收不到消息。
+             这里铺一层 alpha=1 的底色，保证频谱区域始终可悬停。 -->
+        <Border x:Name="VisualizerHitArea" Background="#01000000" Visibility="Collapsed" />
+
+        <!-- 频谱：位于挂件左侧或右侧 -->
+        <Image x:Name="TaskbarVisualizer" Width="120" Height="40" Margin="0,1,0,0"
+               Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"
+               Visibility="Collapsed" />
+
+        <!-- 媒体挂件 + 单行歌词 -->
+        <controls:TaskbarMediaControl x:Name="Widget" />
+    </Canvas>
+</Window>

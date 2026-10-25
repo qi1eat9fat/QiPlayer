@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- 与 FluentFlyout 保持一致，便于日后合并 -->
+    <TargetFramework>net10.0-windows10.0.22000.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>false</UseWindowsForms>
+
+    <!-- BASS native 库为 x64，必须锁定 x64 -->
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+    <RootNamespace>QiPlayer</RootNamespace>
+    <AssemblyName>QiPlayer</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <ApplicationIcon>Assets\QiPlayer.ico</ApplicationIcon>
+
+    <!-- 版本与产品信息（GitHub Release 与文件属性读取） -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>QiPlayer</Product>
+    <Description>面向 Windows 11 的本地音乐播放器：Fluent 2 界面、歌词、任务栏挂件与媒体 Flyout</Description>
+    <Authors>qi1eat9fat</Authors>
+    <Copyright>Copyright © 2026 qi1eat9fat</Copyright>
+
+    <!-- 任务栏频谱的位图栅格化与 LibraryImport 需要 -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Fluent 2 界面：与 FluentFlyout 用同一套（含 Win11 Mica） -->
+    <PackageReference Include="unchihugo.WPF-UI" Version="4.4.2" />
+    <!-- 托盘图标：与 FluentFlyout 同一套 -->
+    <PackageReference Include="WPF-UI.Tray" Version="4.3.0" />
+    <PackageReference Include="MicaWPF" Version="6.3.2" />
+    <!-- MVVM -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <!-- 音频内核 -->
+    <PackageReference Include="ManagedBass" Version="4.0.2" />
+    <!-- 标签与内嵌歌词（只读） -->
+    <PackageReference Include="TagLibSharp" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- native BASS 库复制到输出根目录（必须与 exe 同目录，BASS 才能加载） -->
+    <!-- 用 TargetPath 压平路径，避免落入 Assets\bass\ 子目录 -->
+    <None Include="Assets\bass\*.dll">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+
+    <!-- 图标资源：托盘与窗口使用，需复制到输出目录 -->
+    <Resource Include="Assets\TrayIcon.png" />
+    <Resource Include="Assets\AppIcon.png" />
+  </ItemGroup>
+
+</Project>

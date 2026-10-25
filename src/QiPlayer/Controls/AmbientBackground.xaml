@@ -1,0 +1,81 @@
+<UserControl x:Class="QiPlayer.Controls.AmbientBackground"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ClipToBounds="True"
+             IsHitTestVisible="False">
+
+    <!--
+      ═══════════════════════════════════════════════════════════
+      封面光晕背景（三栏共用）
+      ═══════════════════════════════════════════════════════════
+
+      左 / 中 / 右三栏是三个独立窗口，但背景必须看起来是一整张：
+      每个窗口只画「自己那一块」，坐标由 GroupWidth / GroupHeight / OffsetX 给出，
+      封面在整组矩形里铺一次，各栏按偏移裁切对应部分（见 UpdateViewport）。
+
+      图层也是参考稿的 .ambient：
+        1. 不透明底色 —— 主窗口的 DWM 背景材质已关闭，没有这层卡片会透出桌面
+        2. 封面放大 + 高斯模糊 + 降不透明度
+        3. 主题色压一层，避免浅色封面上文字糊掉
+        4. 左上角极淡的径向光斑，模拟 Mica 的颗粒层次
+    -->
+
+    <Grid>
+        <Border Background="{DynamicResource ApplicationBackgroundBrush}" />
+
+        <!--
+          用 Border + ImageBrush 铺满，缩放走画刷的 Viewport。
+          不能用 Image + RenderTransform 放大：布局尺寸不变而渲染变换放大时，
+          卡片右侧会空出一条没画到的窄带，透出底色显得发白。
+        -->
+        <Border x:Name="CoverLayer" Opacity="0.85">
+            <Border.Background>
+                <ImageBrush x:Name="CoverBrush"
+                            ImageSource="{Binding AlbumCover}"
+                            Stretch="UniformToFill"
+                            Viewbox="0.1875,0.1875,0.625,0.625"
+                            ViewboxUnits="RelativeToBoundingBox"
+                            Viewport="0,0,1200,900"
+                            ViewportUnits="Absolute" />
+            </Border.Background>
+
+            <Border.Effect>
+                <!-- 半径由「外观 → 背景高斯模糊 / 模糊半径」控制（见 ApplyBlurSettings） -->
+                <BlurEffect x:Name="CoverBlur"
+                            Radius="40"
+                            KernelType="Gaussian"
+                            RenderingBias="Performance" />
+            </Border.Effect>
+
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <!-- 沿用「用专辑封面作为背景」设置：关闭时退回纯色底 -->
+                        <DataTrigger Binding="{Binding Settings.AlbumArtBackground}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding HasAlbumCover}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+        </Border>
+
+        <!--
+          压色层：封面层本身是 0.85，再压一半主题色。
+          卡片底（CardBackgroundBrush）是 62% 白，只透出三成多，
+          合起来封面色大约占卡片的 16% —— 看得出是一张封面，又不至于把文字糊掉。
+        -->
+        <Border Background="{DynamicResource ApplicationBackgroundBrush}" Opacity="0.5" />
+
+        <Border>
+            <Border.Background>
+                <RadialGradientBrush GradientOrigin="0.15,0" Center="0.15,0" RadiusX="0.9" RadiusY="0.7">
+                    <GradientStop Color="#26FFFFFF" Offset="0" />
+                    <GradientStop Color="#00FFFFFF" Offset="1" />
+                </RadialGradientBrush>
+            </Border.Background>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,157 @@
+﻿<Window x:Class="QiPlayer.Windows.LyricsWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:vm="clr-namespace:QiPlayer.ViewModels"
+                 xmlns:models="clr-namespace:QiPlayer.Models"
+                 xmlns:controls="clr-namespace:QiPlayer.Controls"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 mc:Ignorable="d"
+                 Title="歌词"
+                 Width="480" Height="760" MinWidth="300" MinHeight="540"
+                 WindowStyle="None" ResizeMode="NoResize"
+                 Background="Transparent"
+                 WindowStartupLocation="Manual"
+                 ShowInTaskbar="False" ShowActivated="False"
+                 d:DataContext="{d:DesignInstance vm:PlayerViewModel}">
+
+    <!--
+      左栏窗口：独立的歌词面板。
+
+      与中栏共用同一个 PlayerViewModel（由 PlayerWindow 在构造时注入），
+      位置与高度由主窗口同步，自己没有系统标题栏按钮，
+      显隐由中栏标题栏的歌词按钮控制。
+    -->
+
+    <Grid x:Name="RootLayout">
+
+                <!--
+          三栏共用同一张背景：本窗口只画「左栏」那一段，
+          整组的宽高与偏移由 PlayerWindow 写入（见 Controls/AmbientBackground）。
+        -->
+        <controls:AmbientBackground x:Name="AmbientLayer" />
+
+        <Border x:Name="Card" Style="{StaticResource SeamlessCardStyle}">
+            <Grid Margin="0,14,0,12">
+                <ScrollViewer x:Name="LyricScroll"
+                              Focusable="False"
+                              VerticalScrollBarVisibility="Hidden"
+                              HorizontalScrollBarVisibility="Disabled"
+                              HorizontalContentAlignment="Stretch">
+                    <ItemsControl ItemsSource="{Binding LyricLines}"
+                                  x:Name="LyricItems"
+                                  HorizontalAlignment="Stretch">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:LyricLineItem}">
+                                <Border x:Name="LineHost"
+                                        CornerRadius="{StaticResource ControlCornerRadius}"
+                                        Padding="14,7"
+                                        Margin="{Binding DataContext.LyricLineSpacing, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource SpacingToMarginConverter}}">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <controls:KaraokeTextBlock Line="{Binding}"
+                                                                   IsCurrent="{Binding IsCurrent}"
+                                                                   KaraokeEnabled="True"
+                                                                   PositionSeconds="{Binding DataContext.PositionSeconds, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                   IsPlaying="{Binding DataContext.IsPlaying, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                   BaseBrush="{DynamicResource LyricKaraokeIdleBrush}"
+                                                                   FillBrush="{DynamicResource LyricKaraokeFillBrush}"
+                                                                   TextAlignment="Center"
+                                                                   TextWrapping="Wrap">
+                                            <controls:KaraokeTextBlock.Style>
+                                                <!--
+                                                    字体属性走 TextElement. 前缀：控件本身是 Grid（两层文本叠放），
+                                                    由这两层继承，写未限定的 FontSize/Foreground 会找不到属性。
+
+                                                    非当前行的不透明度取 0.75：原来的 0.34 叠在封面背景上几乎糊成一片，
+                                                    远看读不出字；0.75 的对比度足够，又不会和当前行抢注意力
+                                                    （当前行另有强调色与整行浅色底，主次不会乱）。
+                                                -->
+                                                <Style TargetType="{x:Type controls:KaraokeTextBlock}">
+                                                    <Setter Property="TextElement.FontSize"
+                                                            Value="{Binding DataContext.LyricSecondaryFontSize, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                    <Setter Property="Opacity" Value="0.75" />
+                                                    <Setter Property="TextElement.Foreground"
+                                                            Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                            <Setter Property="TextElement.FontSize"
+                                                                    Value="{Binding DataContext.LyricFontSize, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                            <Setter Property="Opacity" Value="1" />
+                                                            <Setter Property="TextElement.Foreground"
+                                                                    Value="{DynamicResource AppAccentBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </controls:KaraokeTextBlock.Style>
+                                        </controls:KaraokeTextBlock>
+
+                                        <!--
+                                            翻译行与原歌词同一套格式：同样参与跟唱填充、同样的配色与浓淡规则，
+                                            只是字号取副字号，保持主次关系。
+                                        -->
+                                        <controls:KaraokeTextBlock Line="{Binding}"
+                                                                   IsCurrent="{Binding IsCurrent}"
+                                                                   KaraokeEnabled="True"
+                                                                   UseTranslation="True"
+                                                                   PositionSeconds="{Binding DataContext.PositionSeconds, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                   IsPlaying="{Binding DataContext.IsPlaying, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                   BaseBrush="{DynamicResource LyricKaraokeIdleBrush}"
+                                                                   FillBrush="{DynamicResource LyricKaraokeFillBrush}"
+                                                                   TextAlignment="Center"
+                                                                   TextWrapping="Wrap"
+                                                                   Margin="0,3,0,0"
+                                                                   Visibility="{Binding HasTranslation, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <controls:KaraokeTextBlock.Style>
+                                                <Style TargetType="{x:Type controls:KaraokeTextBlock}">
+                                                    <Setter Property="TextElement.FontSize"
+                                                            Value="{Binding DataContext.LyricSecondaryFontSize, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                    <Setter Property="Opacity" Value="0.75" />
+                                                    <Setter Property="TextElement.Foreground"
+                                                            Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                            <Setter Property="Opacity" Value="1" />
+                                                            <Setter Property="TextElement.Foreground"
+                                                                    Value="{DynamicResource AppAccentBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </controls:KaraokeTextBlock.Style>
+                                        </controls:KaraokeTextBlock>
+                                    </StackPanel>
+                                </Border>
+
+                                <DataTemplate.Triggers>
+                                    <!-- 当前行在整行加一层浅强调色底，与参考稿一致 -->
+                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                        <Setter TargetName="LineHost" Property="Background"
+                                                Value="{DynamicResource AppAccentSoftBrush}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <TextBlock Text="（无歌词）"
+                           FontSize="13"
+                           Foreground="{DynamicResource AppTextTertiaryBrush}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           IsHitTestVisible="False">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding LyricLines.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

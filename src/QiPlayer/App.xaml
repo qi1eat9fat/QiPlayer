@@ -1,0 +1,35 @@
+﻿<Application x:Class="QiPlayer.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mica="clr-namespace:MicaWPF.Styles;assembly=MicaWPF"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:conv="clr-namespace:QiPlayer.Converters"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 跟随系统深浅色，与 FluentFlyout 的配置一致 -->
+                <mica:ThemeDictionary Theme="Auto" DesignModeTheme="Auto" />
+                <mica:ControlsDictionary />
+                <ui:ThemesDictionary Theme="Unknown" />
+                <ui:ControlsDictionary />
+                <!-- 设计令牌：间距、圆角、语义色、阴影（本项目的视觉基准） -->
+                <ResourceDictionary Source="Styles/DesignTokens.xaml" />
+                <!-- 卡片与基础控件样式 -->
+                <ResourceDictionary Source="Styles/Cards.xaml" />
+                <!-- 设置界面：导航、卡片、行、分段控件与滑杆 -->
+                <ResourceDictionary Source="Styles/SettingsStyles.xaml" />
+                <!-- 自定义控件样式（列头按钮） -->
+                <ResourceDictionary Source="Controls/ColumnHeaderButton.xaml" />
+                <!-- 键盘焦点框：必须排在 Wpf.Ui 与设计令牌之后，才能基于它们改写 -->
+                <ResourceDictionary Source="Styles/FocusStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <conv:InverseBoolToVisibilityConverter x:Key="BoolToVisibilityInverseConverter" />
+            <conv:RepeatModeIconConverter x:Key="RepeatModeIconConverter" />
+            <conv:VolumeIconConverter x:Key="VolumeIconConverter" />
+            <conv:SpacingToMarginConverter x:Key="SpacingToMarginConverter" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

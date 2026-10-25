@@ -1,0 +1,191 @@
+<controls:MicaWindow x:Class="QiPlayer.Windows.MediaFlyoutWindow"
+                     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                     xmlns:controls="clr-namespace:MicaWPF.Controls;assembly=MicaWPF"
+                     xmlns:corecontrols="clr-namespace:MicaWPF.Core.Controls;assembly=MicaWPF.Core"
+                     Height="116" Width="310" Top="-9999"
+                     FontFamily="{DynamicResource AppFontFamily}"
+                     WindowStyle="None" ShowInTaskbar="False"
+                     ResizeMode="NoResize"
+                     ChangeTitleColorWhenInactive="False"
+                     TextOptions.TextRenderingMode="ClearType"
+                     TextOptions.TextFormattingMode="Ideal"
+                     MouseEnter="Window_MouseEnter">
+
+    <controls:MicaWindow.Resources>
+        <!-- 播放/暂停：沿用 FluentFlyout 的强调色按钮，悬停只调透明度以保留封面主色 -->
+        <Style x:Key="PlayPauseButtonStyle" TargetType="{x:Type controls:Button}"
+               BasedOn="{StaticResource MicaWPF.Styles.AccentedButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type controls:Button}">
+                        <Grid>
+                            <corecontrols:GradientBorder
+                                x:Name="ContentBorder"
+                                Margin="-2"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Style="{DynamicResource MicaWPF.Styles.GradientBorder.Accent}" />
+                            <ContentPresenter
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ContentBorder" Property="Opacity" Value="0.9" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ContentBorder" Property="Opacity" Value="0.8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </controls:MicaWindow.Resources>
+
+    <Grid>
+        <!-- 模糊背景（三种样式由设置切换） -->
+        <Grid>
+            <Image x:Name="BackgroundImageStyle1" Stretch="UniformToFill" Opacity="1"
+                   IsHitTestVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   RenderTransformOrigin="0.5,0.5" Visibility="Collapsed" ClipToBounds="True">
+                <Image.RenderTransform>
+                    <ScaleTransform ScaleX="1.2" ScaleY="1.2" />
+                </Image.RenderTransform>
+                <Image.Effect>
+                    <BlurEffect Radius="50" />
+                </Image.Effect>
+                <Image.OpacityMask>
+                    <RadialGradientBrush GradientOrigin="0.2,0.5" Center="0.1,0.5" RadiusX="0.7" RadiusY="0.3">
+                        <GradientStop Color="#FF000000" Offset="0.0" />
+                        <GradientStop Color="#00000080" Offset="0.75" />
+                        <GradientStop Color="#00000000" Offset="1.0" />
+                    </RadialGradientBrush>
+                </Image.OpacityMask>
+            </Image>
+
+            <Image x:Name="BackgroundImageStyle2" Stretch="Fill" Opacity="0.8"
+                   IsHitTestVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   RenderTransformOrigin="0.5,0.5" Visibility="Collapsed" ClipToBounds="True">
+                <Image.RenderTransform>
+                    <ScaleTransform ScaleX="1.8" ScaleY="1.8" />
+                </Image.RenderTransform>
+                <Image.Effect>
+                    <BlurEffect Radius="200" />
+                </Image.Effect>
+                <Image.OpacityMask>
+                    <RadialGradientBrush GradientOrigin="0.5,1" Center="0.5,1" RadiusX="0.4" RadiusY="0.7">
+                        <GradientStop Color="#FF000000" Offset="0.0" />
+                        <GradientStop Color="#00000000" Offset="1.0" />
+                    </RadialGradientBrush>
+                </Image.OpacityMask>
+            </Image>
+
+            <Image x:Name="BackgroundImageStyle3" Stretch="UniformToFill" Opacity="0.3"
+                   IsHitTestVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   RenderTransformOrigin="0.5,0.5" Visibility="Collapsed">
+                <Image.RenderTransform>
+                    <ScaleTransform ScaleX="1.2" ScaleY="1.2" />
+                </Image.RenderTransform>
+                <Image.Effect>
+                    <BlurEffect Radius="50" />
+                </Image.Effect>
+            </Image>
+        </Grid>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 封面 + 曲目信息 + 控制 -->
+            <StackPanel Grid.Row="0" Margin="10" Orientation="Horizontal">
+                <Border x:Name="SongImageBorder" CornerRadius="4" Width="82" Height="82" ClipToBounds="True">
+                    <Grid>
+                        <ui:SymbolIcon x:Name="SongImagePlaceholder" Symbol="MusicNote220"
+                                       FontSize="40" Filled="True"
+                                       Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                        <Border x:Name="SongImageHost">
+                            <Border.Background>
+                                <ImageBrush x:Name="SongImage" Stretch="UniformToFill" />
+                            </Border.Background>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <StackPanel x:Name="BodyStackPanel" Orientation="Vertical" VerticalAlignment="Center" Width="194">
+                    <StackPanel x:Name="SongInfoStackPanel" Margin="8,0,0,0" Orientation="Vertical"
+                                VerticalAlignment="Center" Width="182"
+                                ToolTipService.InitialShowDelay="800"
+                                ToolTipService.Placement="Top"
+                                ToolTipService.VerticalOffset="-16">
+                        <TextBlock x:Name="SongTitle" Text="未在播放" FontSize="14" FontWeight="Medium"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="SongArtist" Text="" FontSize="14" FontWeight="Medium"
+                                   Opacity="0.5" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <Grid x:Name="ControlsStackPanelContainer" HorizontalAlignment="Stretch"
+                          Height="35" Margin="8,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel x:Name="ControlsStackPanel" Grid.Column="0" Orientation="Horizontal"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <controls:Button Height="28" Width="28" Click="Previous_Click"
+                                             Style="{StaticResource MicaWPF.Styles.TransparentButton}"
+                                             VerticalAlignment="Center" Focusable="False"
+                                             ToolTip="上一曲">
+                                <ui:SymbolIcon Symbol="Previous20" Filled="True" />
+                            </controls:Button>
+
+                            <controls:Button Height="32" Width="32" Margin="8,0,0,0"
+                                             Click="PlayPause_Click"
+                                             Style="{StaticResource PlayPauseButtonStyle}"
+                                             VerticalAlignment="Center" Focusable="False"
+                                             ToolTip="播放 / 暂停">
+                                <ui:SymbolIcon x:Name="SymbolPlayPause" Symbol="Play16" Filled="True" />
+                            </controls:Button>
+
+                            <controls:Button Height="28" Width="28" Margin="8,0,0,0"
+                                             Click="Next_Click"
+                                             Style="{StaticResource MicaWPF.Styles.TransparentButton}"
+                                             VerticalAlignment="Center" Focusable="False"
+                                             ToolTip="下一曲">
+                                <ui:SymbolIcon Symbol="Next20" Filled="True" />
+                            </controls:Button>
+
+                        </StackPanel>
+
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- 进度条 -->
+            <DockPanel x:Name="SeekbarWrapper" Grid.Row="1" HorizontalAlignment="Stretch"
+                       Margin="16,0,16,12" LastChildFill="True" VerticalAlignment="Center">
+                <TextBlock x:Name="SeekbarCurrentDuration" Text="00:00" Opacity="0.5"
+                           FontSize="12" DockPanel.Dock="Left" Width="45" Margin="0,0,2,0"
+                           TextAlignment="Left" VerticalAlignment="Center" Height="18" />
+                <TextBlock x:Name="SeekbarMaxDuration" Text="--:--" Opacity="0.5"
+                           FontSize="12" DockPanel.Dock="Right" Width="45" Margin="2,0,0,0"
+                           TextAlignment="Right" VerticalAlignment="Center" Height="18" />
+                <!-- 与主窗口的进度条一致：只由鼠标操作，不参与键盘焦点，避免点击后出现焦点框 -->
+                <Slider x:Name="Seekbar" Minimum="0" Maximum="100"
+                        HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                        Height="18" IsMoveToPointEnabled="True"
+                        Focusable="False"
+                        PreviewMouseLeftButtonDown="Seekbar_PreviewMouseLeftButtonDown"
+                        PreviewMouseLeftButtonUp="Seekbar_PreviewMouseLeftButtonUp"
+                        ValueChanged="Seekbar_ValueChanged" />
+            </DockPanel>
+        </Grid>
+    </Grid>
+</controls:MicaWindow>

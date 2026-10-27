@@ -105,7 +105,10 @@
 
             <!-- 封面 + 曲目信息 + 控制 -->
             <StackPanel Grid.Row="0" Margin="10" Orientation="Horizontal">
-                <Border x:Name="SongImageBorder" CornerRadius="4" Width="82" Height="82" ClipToBounds="True">
+                <!-- 单击封面唤起主窗口（面板本身不激活，事件由 FlyoutService 处理） -->
+                <Border x:Name="SongImageBorder" CornerRadius="4" Width="82" Height="82" ClipToBounds="True"
+                        Cursor="Hand" ToolTip="打开 QiPlayer 主窗口"
+                        MouseLeftButtonUp="Cover_Click">
                     <Grid>
                         <ui:SymbolIcon x:Name="SongImagePlaceholder" Symbol="MusicNote220"
                                        FontSize="40" Filled="True"

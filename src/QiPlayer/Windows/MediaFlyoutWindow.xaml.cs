@@ -26,6 +26,9 @@ public partial class MediaFlyoutWindow : MicaWindow
     private bool _isDragging;
     private bool _suppressSeek;
 
+    /// <summary>单击封面：请求打开主窗口。窗口本身不依赖主窗口，由 FlyoutService 处理。</summary>
+    public event EventHandler? CoverClicked;
+
     public MediaFlyoutWindow(PlayerViewModel player)
     {
         _player = player;
@@ -178,6 +181,12 @@ public partial class MediaFlyoutWindow : MicaWindow
     {
         // 悬停时保持显示由 FlyoutService 的轮询处理，这里只刷新一次内容
         UpdateContent();
+    }
+
+    private void Cover_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        CoverClicked?.Invoke(this, EventArgs.Empty);
     }
 
     private void Previous_Click(object sender, RoutedEventArgs e)

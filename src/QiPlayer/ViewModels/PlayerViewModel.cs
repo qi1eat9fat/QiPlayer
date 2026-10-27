@@ -275,7 +275,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
 
     // ---------- 播放列表 ----------
 
-    public ObservableCollection<SongItem> Playlist { get; } = new();
+    public RangeObservableCollection<SongItem> Playlist { get; } = new();
 
     /// <summary>带过滤的列表视图，绑定到 ListBox。</summary>
     public ICollectionView PlaylistView { get; }
@@ -329,34 +329,6 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
 
     partial void OnShowLyricsChanged(bool value)
         => SettingsManager.Current.ShowLyricsPane = value;
-
-    private void ApplySort()
-    {
-        // 记录当前曲目，排序后重新定位索引
-        var current = CurrentSong;
-
-        // 文本列用本地化比较器（中文按拼音、数字按数值），
-        // 与 MusicPlayer2 的 CompareStringEx 行为一致；
-        // 用序数比较会让汉字按码点乱序，不符合中文用户预期。
-        var cmp = NaturalStringComparer.Instance;
-
-        // 面板不再提供排序入口，固定按文件名升序
-        var list = Playlist.OrderBy(s => s.FileName, cmp).ToList();
-
-        // 重建集合，保持与 CurrentSong 的引用一致
-        Playlist.Clear();
-        foreach (var s in list) Playlist.Add(s);
-
-        if (current is not null)
-        {
-            _currentIndex = Playlist.IndexOf(current);
-        }
-
-        // 排序会打乱索引，无序播放的排列必须重建
-        if (Shuffle) RebuildShuffleOrder();
-
-        UpdateListStatus();
-    }
 
     // ---------- 播放状态 ----------
 
@@ -603,14 +575,38 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
 
         ListStatus = "正在扫描…";
 
-        var songs = await Task.Run(() => FolderScanner.Scan(folder, includeSubFolders: true));
+        // 扫描在后台线程进行，进度回调来自多个工作线程：
+        // 这里节流后转回 UI 线程更新状态文本，避免每读一个文件就排队一次调度。
+        long lastProgressTicks = 0;
+
+        var songs = await Task.Run(() => FolderScanner.Scan(
+            folder,
+            includeSubFolders: true,
+            onProgress: (done, total) =>
+            {
+                // 最后一个进度回调不必再发：扫描完成后紧接着就会更新为「共 N 首」，
+                // 迟到的排队回调反而会把状态文本改回「正在扫描」。
+                if (done >= total) return;
+
+                long now = Environment.TickCount64;
+                if (now - Interlocked.Read(ref lastProgressTicks) < 100) return;
+                Interlocked.Exchange(ref lastProgressTicks, now);
+
+                var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                dispatcher?.BeginInvoke(() => ListStatus = $"正在扫描… {done}/{total}");
+            }));
+
         CurrentSong = null;
         _currentIndex = -1;
 
-        Playlist.Clear();
-        foreach (var s in songs) Playlist.Add(s);
+        // 先清缩略图缓存，再整体替换列表：
+        // 扫描结果已按文件名排好序，逐项 Clear + Add 会触发上万次集合通知。
+        CoverThumbnailService.Clear();
+        Playlist.ReplaceAll(songs);
 
-        ApplySort();
+        // 列表顺序变了，无序播放的排列必须重建
+        if (Shuffle) RebuildShuffleOrder();
+
         UpdateListStatus();
 
         if (Playlist.Count > 0)
@@ -961,14 +957,21 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
     private void UpdateListStatus()
     {
         int total = Playlist.Count;
-        int shown = PlaylistView.Cast<object>().Count();
+
+        // 计数与合计时长一次遍历完成：视图在大曲库下重新枚举两遍是纯浪费
+        int shown = 0;
+        double seconds = 0;
+        foreach (var item in PlaylistView)
+        {
+            shown++;
+            if (item is SongItem song) seconds += song.Duration;
+        }
 
         ListStatus = string.IsNullOrWhiteSpace(SearchText)
             ? $"共 {total} 首"
             : $"共 {total} 首 · 匹配 {shown} 首";
 
         // 列表底部显示的合计时长：只统计当前可见（过滤后）的曲目
-        double seconds = PlaylistView.Cast<SongItem>().Sum(s => s.Duration);
         ListDurationText = seconds <= 0
             ? string.Empty
             : $"共 {FormatTotalDuration(seconds)}";

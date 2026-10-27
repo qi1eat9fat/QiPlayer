@@ -394,12 +394,22 @@ public sealed class FlyoutService : IDisposable
         _flyout = new MediaFlyoutWindow(_player);
         _flyout.SetState(_state);
 
+        // 单击封面：先收起面板，再把主窗口叫到前台
+        _flyout.CoverClicked += OnCoverClicked;
+
         // 必须真正 Show 一次，WPF 才会创建渲染管线与内容；
         // 随后立刻在原生层隐藏，交由 OpenAnimation 负责出场。
         // 窗口初始 Top=-9999，Show 的瞬间不会出现在屏幕上。
         _flyout.Show();
 
         _flyout.Closed += (_, _) => _flyout = null;
+    }
+
+    /// <summary>单击 Media Flyout 封面：关闭面板并唤起主窗口。</summary>
+    private void OnCoverClicked(object? sender, EventArgs e)
+    {
+        Hide();
+        App.MainPlayerWindow?.RestoreFromTray();
     }
 
     // ---------- 任务栏 ----------

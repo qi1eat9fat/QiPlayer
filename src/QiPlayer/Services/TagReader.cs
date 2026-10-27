@@ -15,7 +15,12 @@ public static class TagReader
     /// 读取标签并填充到 SongItem。任何异常都被吞掉——
     /// 标签读取失败不应阻断曲目加入列表。
     /// </summary>
-    public static void FillTags(SongItem song)
+    /// <returns>
+    /// true 表示标签读取成功；false 表示文件损坏、被占用或无权限。
+    /// 扫描器据此决定是否把结果写进缓存——读取失败的文件要留到下次重试，
+    /// 不能把空标签永久钉在缓存里。
+    /// </returns>
+    public static bool FillTags(SongItem song)
     {
         try
         {
@@ -35,10 +40,13 @@ public static class TagReader
 
             // 内嵌歌词：标准映射即可覆盖 FLAC/MP3
             song.EmbeddedLyrics = tag.Lyrics ?? string.Empty;
+
+            return true;
         }
         catch
         {
             // 文件损坏、格式不支持、权限不足等：保留默认值
+            return false;
         }
     }
 

@@ -19,6 +19,7 @@
 # ---------- 运行时产物（便携模式，写在 exe 同目录） ----------
 QiPlayer.settings.xml
 QiPlayer.settings.xml.bak
+QiPlayer.library.cache.json.gz
 crash.log
 
 # ---------- 开发探针与本地测试产物 ----------

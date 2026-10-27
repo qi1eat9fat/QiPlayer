@@ -288,6 +288,16 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _listStatus = "尚未载入曲目";
 
+    /// <summary>
+    /// 载入世代号：每次载入文件夹自增。
+    ///
+    /// 进度回调是从工作线程异步派发到 UI 线程的，而 WPF 里 await 的续体
+    /// 以 Send 优先级运行，会抢在更早排队的进度回调之前。于是续体已经把状态
+    /// 更新成「共 N 首」，迟到的进度回调又把文本改回「正在扫描… x/y」。
+    /// 用世代号让上一轮扫描遗留的排队回调全部失效。
+    /// </summary>
+    private int _loadGeneration;
+
     /// <summary>列表底部显示的合计时长（如「共 21 分钟」）。</summary>
     [ObservableProperty]
     private string _listDurationText = string.Empty;
@@ -573,6 +583,8 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
             return;
 
+        int generation = ++_loadGeneration;
+
         ListStatus = "正在扫描…";
 
         // 扫描在后台线程进行，进度回调来自多个工作线程：
@@ -584,8 +596,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
             includeSubFolders: true,
             onProgress: (done, total) =>
             {
-                // 最后一个进度回调不必再发：扫描完成后紧接着就会更新为「共 N 首」，
-                // 迟到的排队回调反而会把状态文本改回「正在扫描」。
+                // 最后一个进度回调不必再发：扫描完成后紧接着就会更新为「共 N 首」
                 if (done >= total) return;
 
                 long now = Environment.TickCount64;
@@ -593,8 +604,17 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
                 Interlocked.Exchange(ref lastProgressTicks, now);
 
                 var dispatcher = System.Windows.Application.Current?.Dispatcher;
-                dispatcher?.BeginInvoke(() => ListStatus = $"正在扫描… {done}/{total}");
+                dispatcher?.BeginInvoke(() =>
+                {
+                    // 本轮扫描已结束（或已被新一轮载入取代）：丢弃这条迟到的进度
+                    if (generation != _loadGeneration) return;
+                    ListStatus = $"正在扫描… {done}/{total}";
+                });
             }));
+
+        // 本轮结束，让仍排在 UI 队列里的进度回调失效
+        if (generation != _loadGeneration) return;   // 已有更新的一次载入接管
+        _loadGeneration++;
 
         CurrentSong = null;
         _currentIndex = -1;

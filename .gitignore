@@ -25,6 +25,7 @@ crash.log
 # ---------- 开发探针与本地测试产物 ----------
 /tools/
 /.playwright-mcp/
+.workbuddy/
 
 # ---------- 本地预览截图（仓库只保留 docs/screenshot.png） ----------
 /*.png

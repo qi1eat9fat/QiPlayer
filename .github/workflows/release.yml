@@ -1,0 +1,196 @@
+name: Release
+
+# 打一个 v* 标签即自动打包并发布 Release：
+#   git tag -a v1.0.3 -m "更新说明…" && git push origin v1.0.3
+# 标签附注（-m 的内容）会直接作为 Release 正文；没有附注时用提交记录自动生成。
+#
+# 也可以在 Actions 页面手动触发：只出 zip 产物（Artifact），不创建 Release。
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（如 v1.0.3）。留空则取 csproj 里的 <Version>'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  package:
+    name: Package (win-x64)
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # 读取标签附注需要完整历史
+
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 缓存 NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('src/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # 版本号优先级：标签 > 手动输入 > csproj 的 <Version>
+      - name: 解析版本号
+        id: ver
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          $raw = $env:TAG
+          if ([string]::IsNullOrWhiteSpace($raw)) { $raw = $env:INPUT_VERSION }
+          if ([string]::IsNullOrWhiteSpace($raw)) {
+            $raw = (Select-String -Path 'src/QiPlayer/QiPlayer.csproj' -Pattern '<Version>([^<]+)</Version>').Matches[0].Groups[1].Value
+          }
+
+          $version = $raw.Trim() -replace '^[vV]', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "版本号格式应为 x.y.z：$raw" }
+
+          # csproj 里 AssemblyVersion / FileVersion 是写死的，必须显式覆盖，
+          # 否则 -p:Version 只会改文件属性里的版本字符串，不会改 exe 的文件版本。
+          $parts = @($version.Split('.'))
+          while ($parts.Count -lt 4) { $parts += '0' }
+          $fileVersion = $parts[0..3] -join '.'
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "fileVersion=$fileVersion" >> $env:GITHUB_OUTPUT
+          Write-Host "版本 $version（文件版本 $fileVersion）"
+
+      - name: 还原
+        run: dotnet restore QiPlayer.slnx
+
+      # 自包含发布：目标机器无需安装 .NET 运行时，解压即用（与历史 Release 一致）。
+      # 不启用单文件：BASS 是原生 DLL，必须与 exe 同目录，单文件解包到临时目录会加载失败。
+      # 这里不加 --no-restore：自包含需要运行时包，还原必须按 publish 的参数走。
+      - name: 发布
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          FILE_VERSION: ${{ steps.ver.outputs.fileVersion }}
+        run: |
+          $publishArgs = @(
+            'publish', 'src/QiPlayer/QiPlayer.csproj',
+            '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true',
+            "-p:Version=$env:VERSION",
+            "-p:AssemblyVersion=$env:FILE_VERSION",
+            "-p:FileVersion=$env:FILE_VERSION",
+            "-p:InformationalVersion=$env:VERSION",
+            '-p:DebugType=none', '-p:DebugSymbols=false',
+            '-o', 'publish'
+          )
+          dotnet @publishArgs
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish 失败（$LASTEXITCODE）" }
+
+      - name: 校验发布目录
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'publish/QiPlayer.exe')) { throw '发布目录缺少 QiPlayer.exe' }
+
+          $missing = @('bass.dll', 'bass_aac.dll', 'bassape.dll', 'bassflac.dll', 'basswma.dll') |
+            Where-Object { -not (Test-Path (Join-Path 'publish' $_)) }
+          if ($missing) { throw "发布目录缺少原生库：$($missing -join ', ')" }
+
+          # 便携模式会把设置与缓存写在 exe 同目录，这些文件不该进包
+          Get-ChildItem 'publish' -Filter '*.pdb' | Remove-Item -Force
+          $files = Get-ChildItem 'publish' -Recurse -File
+          $size = [math]::Round(($files | Measure-Object Length -Sum).Sum / 1MB, 1)
+          Write-Host "发布目录：$($files.Count) 个文件，$size MB"
+
+      - name: 打包
+        id: pack
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          $name = "QiPlayer-v$env:VERSION-win-x64.zip"
+          if (Test-Path $name) { Remove-Item $name -Force }
+
+          Compress-Archive -Path 'publish/*' -DestinationPath $name -CompressionLevel Optimal
+
+          $hash = (Get-FileHash $name -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name" | Out-File -FilePath "$name.sha256" -Encoding utf8
+
+          $mb = [math]::Round((Get-Item $name).Length / 1MB, 1)
+          "zip=$name" >> $env:GITHUB_OUTPUT
+          Write-Host "已生成 $name（$mb MB）"
+          Write-Host "SHA256 $hash"
+
+      - name: 写入构建摘要
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          ZIP: ${{ steps.pack.outputs.zip }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $lines = @(
+            "## QiPlayer v$env:VERSION",
+            "",
+            "- 产物：$env:ZIP",
+            "- 运行时：自包含 win-x64（无需预装 .NET）",
+            "- 触发：$env:REF_TYPE / $env:REF_NAME"
+          )
+          if ($env:REF_TYPE -ne 'tag') {
+            $lines += '- 未打标签，仅产出 Artifact，未创建 Release'
+          }
+          $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: QiPlayer-${{ steps.ver.outputs.version }}-win-x64
+          path: |
+            ${{ steps.pack.outputs.zip }}
+            ${{ steps.pack.outputs.zip }}.sha256
+          retention-days: 14
+
+      - name: 发布 Release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          ZIP: ${{ steps.pack.outputs.zip }}
+        run: |
+          $assets = @($env:ZIP, "$env:ZIP.sha256")
+
+          gh release view $env:TAG --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) {
+            # 标签重打过：覆盖资产，保留已有正文
+            Write-Host "Release $env:TAG 已存在，覆盖上传资产"
+            gh release upload $env:TAG @assets --clobber
+            if ($LASTEXITCODE -ne 0) { throw 'gh release upload 失败' }
+            exit 0
+          }
+
+          $notes = (git tag -l --format='%(contents)' $env:TAG) -join "`n"
+          if ([string]::IsNullOrWhiteSpace($notes)) {
+            gh release create $env:TAG @assets --title "QiPlayer $env:TAG" --generate-notes
+          }
+          else {
+            $notes | Out-File -FilePath 'release-notes.md' -Encoding utf8
+            gh release create $env:TAG @assets --title "QiPlayer $env:TAG" --notes-file 'release-notes.md'
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'gh release create 失败' }

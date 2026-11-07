@@ -1,0 +1,77 @@
+name: CI
+
+# 每次推送到 main 或提交 PR 时编译一次，确保 main 始终是可构建的。
+# 只做 build（不打包），几分钟内出结果；打包与发布见 release.yml。
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  build:
+    name: Build (win-x64)
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 缓存 NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('src/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: 还原
+        run: dotnet restore QiPlayer.slnx
+
+      - name: 编译
+        run: dotnet build QiPlayer.slnx -c Release --no-restore
+
+      # 编译通过还不够：BASS 是原生 x64 库，缺了它程序能起但放不出声。
+      # 这里直接检查输出目录，构建阶段就暴露问题。
+      # 输出路径受 Platform / RID 影响，不写死，直接找 exe 所在目录。
+      - name: 校验原生库
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem 'src/QiPlayer/bin/Release' -Recurse -Filter 'QiPlayer.exe' |
+            Select-Object -First 1
+          if (-not $exe) { throw '编译产物中找不到 QiPlayer.exe' }
+
+          $dir = $exe.Directory.FullName
+          $missing = @('bass.dll', 'bass_aac.dll', 'bassape.dll', 'bassflac.dll', 'basswma.dll') |
+            Where-Object { -not (Test-Path (Join-Path $dir $_)) }
+          if ($missing) { throw "输出目录缺少原生库：$($missing -join ', ')" }
+
+          "OUTPUT_DIR=$dir" >> $env:GITHUB_ENV
+          Write-Host "构建产物正常：$dir"
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: QiPlayer-build-${{ github.sha }}
+          path: ${{ env.OUTPUT_DIR }}
+          retention-days: 7
+          if-no-files-found: warn

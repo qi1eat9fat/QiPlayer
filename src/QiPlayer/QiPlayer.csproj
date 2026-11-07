@@ -49,9 +49,12 @@
   <ItemGroup>
     <!-- native BASS 库复制到输出根目录（必须与 exe 同目录，BASS 才能加载） -->
     <!-- 用 TargetPath 压平路径，避免落入 Assets\bass\ 子目录 -->
+    <!-- CopyToPublishDirectory 单独写一遍：发布目录不会自动继承输出目录的复制规则，
+         漏了它 Release 包里就没有 bass*.dll，程序能启动但放不出声 -->
     <None Include="Assets\bass\*.dll">
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <Visible>false</Visible>
     </None>
 

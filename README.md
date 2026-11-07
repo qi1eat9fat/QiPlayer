@@ -1,5 +1,8 @@
 # QiPlayer
 
+[![CI](https://github.com/qi1eat9fat/QiPlayer/actions/workflows/ci.yml/badge.svg)](https://github.com/qi1eat9fat/QiPlayer/actions/workflows/ci.yml)
+[![Release](https://github.com/qi1eat9fat/QiPlayer/actions/workflows/release.yml/badge.svg)](https://github.com/qi1eat9fat/QiPlayer/actions/workflows/release.yml)
+
 面向 Windows 11 的本地音乐播放器，采用 Fluent 2 风格的三栏界面：歌词、正在播放、播放列表各自独立，可随时收起。
 
 ![QiPlayer 主界面](docs/screenshot.png)
@@ -50,6 +53,20 @@ dotnet publish src/QiPlayer/QiPlayer.csproj -c Release -r win-x64 --self-contain
 ```
 
 BASS 原生库（`Assets/bass/*.dll`）会在构建时自动复制到输出目录，必须与 `QiPlayer.exe` 位于同一目录。
+
+### 自动打包（GitHub Actions）
+
+推送 `v*` 标签即触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)：在 `windows-latest` 上做自包含 win-x64 发布，打包为 `QiPlayer-v<版本>-win-x64.zip`（附 `.sha256`）并创建 Release。
+
+```bash
+git tag -a v1.0.3 -m "本次更新说明（会作为 Release 正文）"
+git push origin v1.0.3
+```
+
+- 版本号取自标签，并覆盖 csproj 中的 `Version` / `AssemblyVersion` / `FileVersion`
+- 标签附注即 Release 正文；没有附注时用提交记录自动生成
+- 手动触发（Actions → Release → Run workflow）只产出 zip 产物，不创建 Release
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 在推送 main 或 PR 时编译，并校验 `bass*.dll` 是否随产物复制
 
 ## 目录结构
 

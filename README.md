@@ -7,7 +7,7 @@
 
 ![QiPlayer 主界面](docs/screenshot.png)
 
-> 当前版本：**v1.0.2**
+> 当前版本：**v1.0.3**
 
 ## 功能
 

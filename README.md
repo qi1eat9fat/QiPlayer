@@ -59,9 +59,11 @@ BASS 原生库（`Assets/bass/*.dll`）会在构建时自动复制到输出目�
 推送 `v*` 标签即触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)：在 `windows-latest` 上做自包含 win-x64 发布，打包为 `QiPlayer-v<版本>-win-x64.zip`（附 `.sha256`）并创建 Release。
 
 ```bash
-git tag -a v1.0.3 -m "本次更新说明（会作为 Release 正文）"
+git tag -a v1.0.3 -F notes.md --cleanup=verbatim   # 用文件写多行附注
 git push origin v1.0.3
 ```
+
+> 附注里如果有 `### 变更` 这类 Markdown 标题，务必加 `--cleanup=verbatim`：git 默认会把 `#` 开头的行当注释丢掉。
 
 - 版本号取自标签，并覆盖 csproj 中的 `Version` / `AssemblyVersion` / `FileVersion`
 - 标签附注即 Release 正文；没有附注时用提交记录自动生成
